@@ -155,6 +155,8 @@ export class TelegramService {
 
   /**
    * Отправка сообщения оператора в Telegram
+   * ВАЖНО: Сообщение уже сохранено в БД и отправлено через WebSocket в message.routes.ts
+   * Эта функция только отправляет сообщение в Telegram
    */
   async sendOperatorMessage(dialogId: number, message: string): Promise<boolean> {
     try {
@@ -173,28 +175,9 @@ export class TelegramService {
       }
 
       const clientId = dialog.rows[0].client_id;
-      const metadata = dialog.rows[0].metadata || {};
 
-      // Отправляем сообщение в Telegram
+      // Отправляем сообщение в Telegram (сообщение уже сохранено в БД в message.routes.ts)
       const success = await this.sendMessage(clientId, message);
-
-      if (success) {
-        // Сохраняем сообщение в базу
-        await query(
-          `INSERT INTO messages (dialog_id, sender_type, content, content_type)
-           VALUES ($1, 'operator', $2, 'text')
-           RETURNING *`,
-          [dialogId, message]
-        );
-
-        // Уведомляем через WebSocket
-        io.emit(`dialog:${dialogId}:message`, {
-          dialogId,
-          content: message,
-          sender_type: 'operator',
-          created_at: new Date().toISOString()
-        });
-      }
 
       return success;
     } catch (error) {
